@@ -163,7 +163,7 @@ impl VM {
                     ; jnz  ->io_error       // jmp if rax != 0
                     ; mov  rcx, r15         // recover ptr
                 ),
-                BfIR::Jz => {
+                BfIR::Jz(_) => {
                     let left = ops.new_dynamic_label();
                     let right = ops.new_dynamic_label();
                     loops.push((left, right));
@@ -174,7 +174,7 @@ impl VM {
                         ; => left
                     )
                 }
-                BfIR::Jnz => {
+                BfIR::Jnz(_) => {
                     let (left, right) = loops.pop().unwrap();
                     dynasm!(ops
                         ; cmp BYTE [rcx], 0

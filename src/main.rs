@@ -1,4 +1,5 @@
 mod error;
+mod inter;
 mod ir;
 mod jit;
 
@@ -8,6 +9,7 @@ use std::{
 };
 
 use clap::Parser;
+use inter::Interpreter;
 use jit::VM;
 
 #[derive(Debug, clap::Parser)]
@@ -17,6 +19,8 @@ struct Opt {
     file_path: PathBuf,
     #[clap(short = 'o', long = "optimize", help = "Optimize code")]
     optimize: bool,
+    #[clap(short = 'i', long = "interpreter", help = "Interpreter mode")]
+    interpreter: bool,
 }
 
 fn main() {
@@ -25,13 +29,23 @@ fn main() {
     let stdin = stdin();
     let stdout = stdout();
 
-    let ret = VM::new(
-        &opt.file_path,
-        Box::new(stdin.lock()),
-        Box::new(stdout.lock()),
-        opt.optimize,
-    )
-    .and_then(|mut vm| vm.run());
+    let ret = if opt.interpreter {
+        Interpreter::new(
+            &opt.file_path,
+            Box::new(stdin.lock()),
+            Box::new(stdout.lock()),
+            opt.optimize,
+        )
+        .and_then(|mut vm| vm.run())
+    } else {
+        VM::new(
+            &opt.file_path,
+            Box::new(stdin.lock()),
+            Box::new(stdout.lock()),
+            opt.optimize,
+        )
+        .and_then(|mut vm| vm.run())
+    };
 
     if let Err(ref e) = ret {
         eprintln!("bfjit: {}", e);

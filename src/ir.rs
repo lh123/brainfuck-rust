@@ -8,8 +8,8 @@ pub enum BfIR {
     SubPtr(u32), // <
     GetByte,     // ,
     PutByte,     // .
-    Jz,          // [
-    Jnz,         // ]
+    Jz(u32),     // [
+    Jnz(u32),    // ]
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -42,15 +42,13 @@ impl Display for CompileError {
     }
 }
 
-pub fn compile<S: AsRef<str>>(src: S) -> Result<Vec<BfIR>, CompileError> {
+pub fn compile(src: &str) -> Result<Vec<BfIR>, CompileError> {
     let mut code: Vec<BfIR> = vec![];
 
     let mut stk: Vec<(u32, u32, u32)> = vec![];
 
     let mut line: u32 = 0;
     let mut col: u32 = 0;
-
-    let src = src.as_ref();
 
     for ch in src.chars() {
         col += 1;
@@ -68,15 +66,16 @@ pub fn compile<S: AsRef<str>>(src: S) -> Result<Vec<BfIR>, CompileError> {
             '[' => {
                 let pos = code.len() as u32;
                 stk.push((pos, line, col));
-                code.push(BfIR::Jz)
+                code.push(BfIR::Jz(0))
             }
             ']' => {
-                stk.pop().ok_or(CompileError {
+                let (pos, _, _) = stk.pop().ok_or(CompileError {
                     line,
                     col,
                     kind: CompileErrorKind::UnexpectedRightBracket,
                 })?;
-                code.push(BfIR::Jnz)
+                code[pos as usize] = BfIR::Jz(code.len() as u32);
+                code.push(BfIR::Jnz(pos));
             }
             _ => {}
         }
@@ -129,8 +128,16 @@ pub fn optimize_ir(code: &mut Vec<BfIR>) {
             BfIR::SubPtr(mut x) => fold_ir!(SubPtr, x),
             BfIR::GetByte => normal_ir!(),
             BfIR::PutByte => normal_ir!(),
-            BfIR::Jz => normal_ir!(),
-            BfIR::Jnz => normal_ir!(),
+            BfIR::Jz(pos) => {
+                code[pc] = BfIR::Jz(pos);
+                pc += 1;
+                i += 1;
+            }
+            BfIR::Jnz(pos) => {
+                code[pc] = BfIR::Jnz(pos);
+                pc += 1;
+                i += 1;
+            }
         }
     }
     code.truncate(pc);
@@ -149,10 +156,10 @@ mod test {
             compile("+[,.]").unwrap(),
             vec![
                 BfIR::AddVal(1),
-                BfIR::Jz,
+                BfIR::Jz(4),
                 BfIR::GetByte,
                 BfIR::PutByte,
-                BfIR::Jnz
+                BfIR::Jnz(1),
             ]
         );
 
@@ -171,6 +178,6 @@ mod test {
     fn test_optimize() {
         let mut code = compile("[+++++++]").unwrap();
         optimize_ir(&mut code);
-        assert_eq!(code, vec![BfIR::Jz, BfIR::AddVal(7), BfIR::Jnz]);
+        assert_eq!(code, vec![BfIR::Jz(8), BfIR::AddVal(7), BfIR::Jnz(0)]);
     }
 }
