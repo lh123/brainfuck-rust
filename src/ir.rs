@@ -120,6 +120,7 @@ pub fn optimize_ir(code: &mut Vec<BfIR>) {
         }};
     }
     // 折叠IR
+    let mut stk = vec![];
     while i < len {
         match code[i] {
             BfIR::AddVal(mut x) => fold_ir!(AddVal, x),
@@ -128,13 +129,16 @@ pub fn optimize_ir(code: &mut Vec<BfIR>) {
             BfIR::SubPtr(mut x) => fold_ir!(SubPtr, x),
             BfIR::GetByte => normal_ir!(),
             BfIR::PutByte => normal_ir!(),
-            BfIR::Jz(pos) => {
-                code[pc] = BfIR::Jz(pos);
+            BfIR::Jz(_) => {
+                code[pc] = BfIR::Jz(0);
+                stk.push(pc);
                 pc += 1;
                 i += 1;
             }
-            BfIR::Jnz(pos) => {
-                code[pc] = BfIR::Jnz(pos);
+            BfIR::Jnz(_) => {
+                let jz_pos = stk.pop().unwrap() as u32;
+                code[pc] = BfIR::Jnz(jz_pos);
+                code[jz_pos as usize] = BfIR::Jz(pc as u32);
                 pc += 1;
                 i += 1;
             }
@@ -178,6 +182,6 @@ mod test {
     fn test_optimize() {
         let mut code = compile("[+++++++]").unwrap();
         optimize_ir(&mut code);
-        assert_eq!(code, vec![BfIR::Jz(8), BfIR::AddVal(7), BfIR::Jnz(0)]);
+        assert_eq!(code, vec![BfIR::Jz(2), BfIR::AddVal(7), BfIR::Jnz(0)]);
     }
 }

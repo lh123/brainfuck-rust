@@ -48,7 +48,7 @@ impl Interpreter {
     pub fn run(&mut self) -> Result<()> {
         let code_len = self.code.len() as u32;
         while self.pc < code_len {
-            // println!("Code: {:?}, PC: {}", self.code[self.pc], self.pc);
+            // println!("Code: {:?}, PC: {}", self.code[self.pc as usize], self.pc);
             match &self.code[self.pc as usize] {
                 BfIR::AddVal(x) => {
                     self.memory[self.ptr as usize] = self.memory[self.ptr as usize].wrapping_add(*x)
